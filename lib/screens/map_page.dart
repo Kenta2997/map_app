@@ -15,20 +15,48 @@ class MapWidget extends StatefulWidget {
 class _MapWidgetState extends State<MapWidget> {
   final MapController _mapController = MapController();
   double _zoom = 14.0;
-  LatLng _center = LatLng(35.681, 139.767);
+  LatLng _center = LatLng(35.681, 139.767); // 初期表示の中心座標
   Event? _selectedEvent;
   late Future<List<Event>> _eventsFuture;
+  DateTime _selectedDate = DateTime.now();
 
   @override
   void initState() {
     super.initState();
-    _eventsFuture = EventService().getEvents();
+    _fetchEvents();
+  }
+
+  void _fetchEvents() {
+    setState(() {
+      _eventsFuture = EventService().getEvents(date: _selectedDate, location: _center);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Map')),
+      appBar: AppBar(
+        title: const Text('Map'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_today),
+            onPressed: () async {
+              final DateTime? picked = await showDatePicker(
+                context: context,
+                initialDate: _selectedDate,
+                firstDate: DateTime(2000),
+                lastDate: DateTime(2101),
+              );
+              if (picked != null && picked != _selectedDate) {
+                setState(() {
+                  _selectedDate = picked;
+                  _fetchEvents();
+                });
+              }
+            },
+          ),
+        ],
+      ),
       body: FutureBuilder<List<Event>>(
         future: _eventsFuture,
         builder: (context, snapshot) {
@@ -70,7 +98,7 @@ class _MapWidgetState extends State<MapWidget> {
                         heroTag: "btn1",
                         mini: true,
                         onPressed: () {
-                          final newZoom = _mapController.camera.zoom + 1; // Correct way to get and change zoom
+                          final newZoom = _mapController.camera.zoom + 1;
                           _mapController.move(_mapController.camera.center, newZoom);
                         },
                         child: const Icon(Icons.add),
@@ -79,7 +107,7 @@ class _MapWidgetState extends State<MapWidget> {
                         heroTag: "btn2",
                         mini: true,
                         onPressed: () {
-                          final newZoom = _mapController.camera.zoom - 1; // Correct way to get and change zoom
+                          final newZoom = _mapController.camera.zoom - 1;
                           _mapController.move(_mapController.camera.center, newZoom);
                         },
                         child: const Icon(Icons.remove),
@@ -108,6 +136,14 @@ class _MapWidgetState extends State<MapWidget> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          Image.network(
+            event.imageUrl,
+            height: 200,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => const Center(child: Text('Image failed to load')),
+          ),
+          const SizedBox(height: 10),
           Text(event.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           Text(event.description, style: const TextStyle(fontSize: 16)),
           Text('${event.date.year}年${event.date.month}月${event.date.day}日', style: const TextStyle(fontSize: 16)),
